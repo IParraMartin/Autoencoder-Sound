@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import einops
 
-"""Main"""
+
 class Autoencoder(nn.Module):
     def __init__(self, in_dims: int = 16000, h_dims: int = 10, bias_last_fc: bool = True, image: bool = True):
         super().__init__()

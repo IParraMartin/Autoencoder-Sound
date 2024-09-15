@@ -15,4 +15,10 @@ class AudioData(Dataset):
     
     def __getitem__(self, index):
         pass
+
+    def resample(self, sample, target):
+        pass
+
+    def to_mono(self, sample):
+        pass
         
