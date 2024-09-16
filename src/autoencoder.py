@@ -3,12 +3,13 @@ import torch.nn as nn
 import einops
 
 
-class Autoencoder(nn.Module):
+class VAE(nn.Module):
     def __init__(self, in_dims: int = 16000, h_dims: int = 10, bias_last_fc: bool = True, image: bool = True):
         super().__init__()
 
         self.image = image
         self.bias_last_fc = bias_last_fc
+        self.h_dims = h_dims
 
         def make_block(in_dims, out_dims, dropout):
             block = [
@@ -24,13 +25,15 @@ class Autoencoder(nn.Module):
             *make_block(1024, 512, 0.1),
             *make_block(512, 256, 0.1),
             *make_block(256, 128, 0.1),
-            *make_block(128, h_dims, 0.1)
         )
 
-        self.latent_space = nn.Linear(h_dims, h_dims)
+        # A fully connected layer that takes the output from the previous layer (of size 128) and maps it to the mean vector (mu) of size h_dims
+        self.fc_mu = nn.Linear(128, h_dims)
+        # Another fully connected layer that maps the same 128-dimensional input to the log variance vector (log_var) of the latent space.
+        self.fc_log_var = nn.Linear(128, h_dims)
 
+        self.in_decoder = nn.Linear(h_dims, 128)
         self.decoder = nn.Sequential(
-            *make_block(h_dims, 128, 0.1),
             *make_block(128, 256, 0.1),
             *make_block(256, 512, 0.1),
             *make_block(512, 1024, 0.1),
@@ -39,17 +42,31 @@ class Autoencoder(nn.Module):
 
         self.init_weights()
 
-    def forward(self, x):
+    def encode(self, x):
+        x = self.encoder(x)
+        mu = self.fc_mu(x)
+        log_var = self.fc_log_var(x)
+        return mu, log_var
+    
+    # samples from the latent distribution using the mean and log variance
+    def reparametrize(self, mu, log_var):
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn_like(std)
+        return mu + eps * std
 
+    def decode(self, z):
+        x = self.in_decoder(z)
+        x = self.decoder(x)
+        return x
+
+    def forward(self, x):
         if self.image:
             x = einops.rearrange(x, "B C H W -> B C (H W)")
-
         x = x.squeeze()
-
-        encoded = self.encoder(x)
-        latent = self.latent_space(encoded)
-        decoded = self.decoder(latent)
-        return decoded, latent
+        mu, log_var = self.encode(x)
+        z = self.reparametrize(mu, log_var)
+        reconstructed = self.decode(z)
+        return reconstructed, mu, log_var
     
     def init_weights(self):
         for m in self.modules():
@@ -74,11 +91,14 @@ class Autoencoder(nn.Module):
 
 if __name__ == "__main__":
 
-    img = Autoencoder.get_fake_img_data(4, 1, 16, 16)
-    sound = Autoencoder.get_fake_sound_data(4, 1, 16000)
+    sound = VAE.get_fake_sound_data(4, 1, 8000)
 
-    model = Autoencoder(in_dims=16000, h_dims=10, bias_last_fc=True, image=False)
+    model = VAE(
+        in_dims=sound.shape[2],
+        h_dims=10, 
+        bias_last_fc=True, 
+        image=False
+    )
     
-    out, latent = model(sound)
-    print(latent)
+    out, mu, log_var = model(sound)
     print(out)
