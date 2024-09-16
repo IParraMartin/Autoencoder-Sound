@@ -6,15 +6,15 @@ import os
 
 class AudioData(Dataset):
 
-    def __init__(self, audio_path, sample_rate, sample_len, transform):
+    def __init__(self, audio_path, sample_rate, sample_len):
         super().__init__()
         self.audio_path = audio_path
         self.target_sample_rate = sample_rate
         self.sample_len = sample_len
-        self.transform = transform
+        self.audio_files = os.listdir(audio_path)
         
     def __len__(self):
-        return len(self.audio_path)
+        return len(self.audio_files)
     
     def __getitem__(self, index):
         audio_sample_path = self.get_audio_path(index)
@@ -32,12 +32,14 @@ class AudioData(Dataset):
         return signal
 
     def get_audio_path(self, index):
-        return os.path.join(self.audio_path, index)
+        filename = self.audio_files[index]
+        return os.path.join(self.audio_path, filename)
 
-    def resample(self, sr, signal):
+    def resample(self, signal, sr):
         if sr != self.target_sample_rate:
             resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate)
-            return resampler(signal)
+            signal = resampler(signal)
+        return signal 
 
     def to_mono(self, signal):
         if signal.shape[0] != 1:
@@ -49,7 +51,8 @@ class AudioData(Dataset):
         if len_signal < self.sample_len:
             n_missing = self.sample_len - len_signal
             padding = (0, n_missing)
-        return torch.nn.functional.pad(signal, padding)
+            signal = torch.nn.functional.pad(signal, padding)
+        return signal
     
     def truncate(self, signal):
         if signal.shape[1] > self.sample_len:
@@ -59,4 +62,8 @@ class AudioData(Dataset):
         
 if __name__ == "__main__":
     
-    dataset = AudioData()
+    dataset = AudioData(
+        audio_path='/Users/inigoparra/Desktop/ESC-50-master/audio',
+        sample_rate=8000,
+        sample_len=40000
+    )
