@@ -9,8 +9,8 @@ import torch
     - Encourages the latent distribution to be close to a standard normal distribution.
 """
 
-def vae_loss_function(pred, target, mu, log_var):
-    reconstruction_loss = nn.functional.mse_loss(pred, target, reduction='sum')
+def vae_loss_function(pred, gt_sample, mu, log_var):
+    reconstruction_loss = nn.functional.mse_loss(pred, gt_sample, reduction='sum')
     kl_divergence = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return reconstruction_loss + kl_divergence
 

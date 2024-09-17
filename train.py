@@ -34,7 +34,7 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
             samples = samples.to(device)
 
             outputs, mu, log_var = model(samples)
-            loss = vae_loss_function(outputs, mu, log_var)
+            loss = vae_loss_function(outputs, samples, mu, log_var)
             train_loss += loss.item()
 
             optimizer.zero_grad()
@@ -53,7 +53,7 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
                 samples = samples.to(device)
 
                 outputs, mu, log_var = model(samples)
-                loss = vae_loss_function(outputs, mu, log_var)
+                loss = vae_loss_function(outputs, samples, mu, log_var)
                 val_loss += loss.item()
 
                 if (idx_batch + 1) % 10 == 0:
