@@ -1,23 +1,26 @@
-from tabulate import tabulate
-import torch.utils
-import torch.utils.data
-from loss.loss import vae_loss_function
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.optim import Optimizer
+
+import os
+
+from tabulate import tabulate
+from loss.loss import vae_loss_function
 
 
 def get_table(metrics):
     headers = ['Metric', 'Result']
     table = [[key, value] for key, value in metrics.items()]
-    print(tabulate(table, headers), tablefmt='grid')
+    print(tabulate(table, headers, tablefmt='grid'))
 
 
-def save_checkpoint(model):
-    torch.save(model.state_dict(), 'vae_checkpoint.pt')
+def save_checkpoint(model, epoch):
+    os.makedirs('checkpoints', exist_ok=True)
+    torch.save(model.state_dict(), f'checkpoints/vae_checkpoint_epoch{epoch}.pt')
 
 
-def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader: DataLoader, val_dataloader: DataLoader, optimizer: torch.optim, save_model: bool):
+def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader: DataLoader, val_dataloader: DataLoader, optimizer: Optimizer, save_model: bool):
 
     model = model.to(device)
     print(f'Device: {device}')
@@ -27,7 +30,7 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
 
         model.train()
         train_loss = 0.0
-        for idx_batch, (samples) in enumerate(train_dataloader):
+        for idx_batch, samples in enumerate(train_dataloader):
             samples = samples.to(device)
 
             outputs, mu, log_var = model(samples)
@@ -46,7 +49,7 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for idx_batch, (samples) in enumerate(val_dataloader):
+            for idx_batch, samples in enumerate(val_dataloader):
                 samples = samples.to(device)
 
                 outputs, mu, log_var = model(samples)
@@ -59,11 +62,12 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
             val_loss /= len(val_dataloader)
 
         if save_model and (epoch + 1) % 5 == 0:
-            save_checkpoint(model)
+            save_checkpoint(model, epoch+1)
+            print('Checkpoint generated.')
 
     metrics = {
-        'train_loss': train_loss,
-        'val_loss': val_loss
+        'final_train_loss': train_loss,
+        'final_val_loss': val_loss
     }
     
     get_table(metrics)
