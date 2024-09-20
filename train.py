@@ -30,8 +30,10 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
 
         model.train()
         train_loss = 0.0
+        train_batches = 0
         for idx_batch, samples in enumerate(train_dataloader):
             samples = samples.to(device)
+            train_batches += 1
 
             outputs, mu, log_var = model(samples)
             loss = vae_loss_function(outputs, samples, mu, log_var)
@@ -44,13 +46,16 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
             if (idx_batch + 1) % 10 == 0:
                 print(f'Epoch [{epoch+1}/{epochs}] - Step [{idx_batch+1}/{len(train_dataloader)}] - loss: {loss.item():.3f}')
 
-        train_loss /= len(train_dataloader)
+        avg_train_loss = train_loss / train_batches
+        print(f'Average train loss at epoch: {avg_train_loss:.3f}')
 
         model.eval()
         val_loss = 0.0
+        val_batches = 0
         with torch.no_grad():
             for idx_batch, samples in enumerate(val_dataloader):
                 samples = samples.to(device)
+                val_batches += 1
 
                 outputs, mu, log_var = model(samples)
                 loss = vae_loss_function(outputs, samples, mu, log_var)
@@ -58,12 +63,15 @@ def train(epochs: int, model: nn.Module, device: torch.device, train_dataloader:
 
                 if (idx_batch + 1) % 10 == 0:
                     print(f'Epoch [{epoch+1}/{epochs}] - Step [{idx_batch+1}/{len(val_dataloader)}] - loss: {loss.item():.3f}')
+        
+        avg_val_loss = val_loss / val_batches
+        print(f'Average train loss at epoch: {avg_val_loss:.3f}')
 
-            val_loss /= len(val_dataloader)
 
-        if save_model and (epoch + 1) % 5 == 0:
-            save_checkpoint(model, epoch+1)
+        if save_model and epoch % 5 == 0:
+            save_checkpoint(model, epoch)
             print('Checkpoint generated.')
+
 
     metrics = {
         'final_train_loss': train_loss,
